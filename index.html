@@ -3,172 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Trimmer and Downloader</title>
+    <title>Simple YouTube Video Trimmer</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #1a1a1a;
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
+            max-width: 600px;
+            margin: 0 auto;
             padding: 20px;
-            box-sizing: border-box;
+            background-color: #f0f0f0;
         }
         .container {
-            background-color: #2a2a2a;
+            background-color: #fff;
             padding: 20px;
             border-radius: 8px;
-            width: 100%;
-            max-width: 600px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        h1, h2 {
+        h1 {
             text-align: center;
-            margin-top: 0;
+            color: #333;
         }
         input, button {
             width: 100%;
             padding: 10px;
             margin: 10px 0;
-            border: none;
-            border-radius: 4px;
             box-sizing: border-box;
         }
         button {
             background-color: #4CAF50;
             color: white;
+            border: none;
             cursor: pointer;
         }
         button:hover {
             background-color: #45a049;
         }
-        .video-container {
+        #player {
+            width: 100%;
+            height: 315px;
+            margin-top: 20px;
+        }
+        .time-inputs {
             display: flex;
             justify-content: space-between;
             margin-top: 20px;
         }
-        .video-player {
-            width: 48%;
-        }
-        video {
-            width: 100%;
-            background-color: #000;
-        }
-        .slider-container {
-            margin-top: 10px;
-        }
-        input[type="range"] {
-            width: 100%;
-        }
-        #qualityOptions {
-            margin-top: 20px;
-            text-align: center;
-        }
-        .qualityBtn {
-            display: inline-block;
-            margin: 5px;
-            padding: 10px 15px;
-            background-color: #3498db;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .qualityBtn:hover {
-            background-color: #2980b9;
+        .time-inputs input {
+            width: 45%;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Video Trimmer and Downloader</h1>
-        <input type="text" id="videoUrl" placeholder="https://x.com/i/status/1816949775864082522" value="https://x.com/i/status/1816949775864082522">
+        <h1>Simple YouTube Video Trimmer</h1>
+        <input type="text" id="videoUrl" placeholder="Enter YouTube URL" value="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
         <button onclick="loadVideo()">Load Video</button>
-        <div class="video-container">
-            <div class="video-player">
-                <h2>Start Point</h2>
-                <video id="startVideo" controls>
-                    Your browser does not support the video tag.
-                </video>
-                <div class="slider-container">
-                    <input type="range" id="startSlider" min="0" max="100" value="0">
-                </div>
-            </div>
-            <div class="video-player">
-                <h2>End Point</h2>
-                <video id="endVideo" controls>
-                    Your browser does not support the video tag.
-                </video>
-                <div class="slider-container">
-                    <input type="range" id="endSlider" min="0" max="100" value="100">
-                </div>
-            </div>
+        <div id="player"></div>
+        <div class="time-inputs">
+            <input type="number" id="startTime" placeholder="Start Time (seconds)" min="0" step="1">
+            <input type="number" id="endTime" placeholder="End Time (seconds)" min="0" step="1">
         </div>
-        <div id="qualityOptions">
-            <h2>Select Quality and Download</h2>
-            <div class="qualityBtn" onclick="downloadTrimmedVideo('720p')">HD (720p)</div>
-            <div class="qualityBtn" onclick="downloadTrimmedVideo('480p')">SD (480p)</div>
-            <div class="qualityBtn" onclick="downloadTrimmedVideo('360p')">Low (360p)</div>
-        </div>
+        <button onclick="trimVideo()">Trim Video</button>
     </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-        let video;
+        let player;
+
+        function onYouTubeIframeAPIReady() {
+            console.log('YouTube API Ready');
+        }
 
         function loadVideo() {
-            const url = document.getElementById('videoUrl').value;
-            const startVideo = document.getElementById('startVideo');
-            const endVideo = document.getElementById('endVideo');
-            
-            // In a real application, you would fetch the video from the provided URL
-            // For this example, we'll use a placeholder video
-            const videoUrl = '/api/placeholder/400/300'; // Replace with actual video URL in production
-            
-            startVideo.src = videoUrl;
-            endVideo.src = videoUrl;
+            const videoUrl = document.getElementById('videoUrl').value;
+            const videoId = extractVideoID(videoUrl);
 
-            // Use the first video element for duration and other properties
-            video = startVideo;
-
-            video.onloadedmetadata = function() {
-                setupSliders();
-            };
-        }
-
-        function setupSliders() {
-            const startSlider = document.getElementById('startSlider');
-            const endSlider = document.getElementById('endSlider');
-            const startVideo = document.getElementById('startVideo');
-            const endVideo = document.getElementById('endVideo');
-
-            startSlider.max = endSlider.max = video.duration;
-            endSlider.value = video.duration;
-
-            startSlider.oninput = function() {
-                startVideo.currentTime = this.value;
-            };
-
-            endSlider.oninput = function() {
-                endVideo.currentTime = this.value;
-            };
-        }
-
-        function downloadTrimmedVideo(quality) {
-            const startTime = document.getElementById('startSlider').value;
-            const endTime = document.getElementById('endSlider').value;
-
-            if (parseFloat(startTime) >= parseFloat(endTime)) {
-                alert("Invalid time range. Please ensure the end point is after the start point.");
-                return;
+            if (videoId) {
+                if (player) {
+                    player.loadVideoById(videoId);
+                } else {
+                    player = new YT.Player('player', {
+                        height: '315',
+                        width: '100%',
+                        videoId: videoId,
+                        events: {
+                            'onReady': onPlayerReady
+                        }
+                    });
+                }
+            } else {
+                alert('Invalid YouTube URL');
             }
-
-            // In a real application, this would initiate the download of the trimmed video
-            alert(`Downloading video from ${parseFloat(startTime).toFixed(2)}s to ${parseFloat(endTime).toFixed(2)}s in ${quality} quality. This would typically save to your downloads folder.`);
         }
 
-        // Initialize with pre-filled URL
-        loadVideo();
+        function onPlayerReady(event) {
+            console.log('Player Ready');
+        }
+
+        function extractVideoID(url) {
+            const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[7].length == 11) ? match[7] : false;
+        }
+
+        function trimVideo() {
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+
+            if (startTime && endTime) {
+                if (parseFloat(startTime) >= parseFloat(endTime)) {
+                    alert("Invalid time range. End time should be greater than start time.");
+                    return;
+                }
+
+                alert(`Video would be trimmed from ${startTime}s to ${endTime}s. 
+                       In a real application, this would initiate the trimming process.`);
+                
+                // Demonstrate trimming by seeking to start time
+                player.seekTo(parseFloat(startTime));
+            } else {
+                alert("Please enter both start and end times.");
+            }
+        }
     </script>
 </body>
 </html>
